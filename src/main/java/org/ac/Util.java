@@ -3,29 +3,27 @@ package org.ac;
 import java.io.*;
 
 public class Util {
-    static String transactionIDPath = "transactionID";
-    static int transactionID = 1;
+    public static final String transactionIDPath = "transactionID";
 
     public static int getTransactionIDFromFile() {
+        int transactionID = 1;
+
         try {
             DataInputStream dataInputStream = new DataInputStream(new FileInputStream(transactionIDPath));
             transactionID = dataInputStream.readInt();
+            dataInputStream.close();
         } catch (FileNotFoundException e) {
-            e.printStackTrace();
         } catch (IOException e) {
-            e.printStackTrace();
         }
 
         return transactionID;
     }
 
     public static void updateTransactionIDToFile() throws IOException {
-        File file = new File(transactionIDPath);
-        if(!file.exists()) {
-            file.createNewFile();
-        }
+        int currentTransactionID = getTransactionIDFromFile();
 
         DataOutputStream dataOutputStream = new DataOutputStream(new FileOutputStream(transactionIDPath));
-        dataOutputStream.writeInt(transactionID+1);
+        dataOutputStream.writeInt(currentTransactionID + 1);
+        dataOutputStream.close();
     }
 }

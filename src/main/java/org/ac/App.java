@@ -10,6 +10,7 @@ import com.webank.wecrosssdk.rpc.service.WeCrossRPCService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Arrays;
 
 public class App {
@@ -20,13 +21,13 @@ public class App {
     static String gmBcosHelloWorldPath = "payment.gm_bcos.HelloWorld";
     static String[] paths = new String[]{bcosHelloWorldPath, gmBcosHelloWorldPath};
 
-
-    public static String getTransactionID() {
-        return "1";
+    private static String getTransactionID() {
+        int tid = Util.getTransactionIDFromFile();
+        return Integer.toString(tid);
     }
 
-    public static void saveTransactionID() {
-
+    private static void updateTransactionID() throws IOException {
+        Util.updateTransactionIDToFile();
     }
 
     public static void main(String[] args) {
