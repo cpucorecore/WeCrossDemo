@@ -1,8 +1,14 @@
 package org.ac;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.*;
 
 public class Util {
+
+    public static final Logger logger = LoggerFactory.getLogger(App.class);
+
     public static final String transactionIDPath = "transactionID";
 
     public static int getTransactionIDFromFile() {
