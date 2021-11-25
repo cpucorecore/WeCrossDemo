@@ -1,50 +1,51 @@
+/*
+  本例使用WeCross Java SDK发起对链上合约的调用，该sdk对合约调用支持有限，当不能满足需求时使用FISCO BCOS的Java SDK发起链上合约调用，它支持通过abi来构造交易，能够构造复杂的合约参数；
+  本例在本地搭建了两条FISCO BCOS联盟链，分别为国密(gm_bcos)和非国密(bcos)链，展示由bcos链发起的对gm_bcos链的跨链调用；
+  1. java App -->调用 payment.bcos.WeCrossHub合约 interchainInvoke方法
+  2. 跨链路由 -->轮询 payment.bcos.WeCrossHub --> 得到跨链请求
+  3. 跨链路由 -->调用 payment.gm_bcos.interchain合约 set方法 --> 跨链路由得到本次调用返回的值
+  4. 跨链路由 -->调用回调 payment.bcos.interchain合约 set方法 步骤3返回的值
+  5. 跨链路由 --> 将步骤4的回调结果写入payment.bcos.WeCrossHub合约
+  6. java App -->查询 payment.bcos.WeCrossHub合约得到回调结果
+ */
+
 package org.ac;
 
+import com.alibaba.fastjson.JSONArray;
 import com.webank.wecrosssdk.exception.WeCrossSDKException;
 import com.webank.wecrosssdk.resource.Resource;
 import com.webank.wecrosssdk.resource.ResourceFactory;
 import com.webank.wecrosssdk.rpc.WeCrossRPC;
 import com.webank.wecrosssdk.rpc.WeCrossRPCFactory;
 import com.webank.wecrosssdk.rpc.methods.response.TransactionResponse;
-import com.webank.wecrosssdk.rpc.methods.response.XAResponse;
 import com.webank.wecrosssdk.rpc.service.WeCrossRPCService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.Arrays;
+import java.util.Random;
 
 public class App {
 
     public static final Logger logger = LoggerFactory.getLogger(App.class);
 
-    static final String bcosHelloWorldPath = "payment.bcos.HelloWorld";
-    static final String gmBcosHelloWorldPath = "payment.gm_bcos.HelloWorld";
-    static String[] paths = new String[]{bcosHelloWorldPath, gmBcosHelloWorldPath};
+    static final String WeCrossHubInterchainInvoke = "interchainInvoke";
 
-    static Resource resource;
-    static Resource gmResource;
+    static final String bcosWeCrossHubPath = "payment.bcos.WeCrossHub";
+    static final String gm_bcosContractPath = "payment.gm_bcos.interchain";
+    static final String bcosContractPath = "payment.bcos.interchain";
 
-    private static String getTransactionID() {
-        int tid = Util.getTransactionIDFromFile();
-        return Integer.toString(tid);
-    }
+    static final String gm_bcosContractMethod = "set";
+    static final String bcosContractMethod = "callback";
 
-    private static void updateTransactionID() throws IOException {
-        Util.updateTransactionIDToFile();
-    }
+    static Resource bcosWeCrossHubContract; // bcos链桥接合约
+    static Resource bcosInterchainContract; // 回调合约(payment.bcos.interchain)，跨链调用成功后跨链路由会回调该合约的callback方法
+    /* 跨链目标合约(payment.gm_bcos.interchain)，通过跨链设置其数据，
+       设置成功后设置的数据又会通过回调写回发起跨链调用的链端的合约payment.bcos.interchain
+     */
+    static Resource gm_bcosInterchainContract;
 
-    private static void queryResources() {
-        try {
-            String[] callRet = resource.call("get");
-            logger.info(resource.getPath() + " get info: " + Arrays.toString(callRet));
-
-            callRet = gmResource.call("get");
-            logger.info(gmResource.getPath() + " get info: " + Arrays.toString(callRet));
-        } catch (WeCrossSDKException e) {
-            logger.error("query resources failed: " + e.toString());
-        }
-    }
+    public static final Random r = new Random();
 
     public static void main(String[] args) {
         WeCrossRPCService weCrossRPCService = new WeCrossRPCService();
@@ -65,97 +66,74 @@ public class App {
             return;
         }
 
+        // 创建相关合约的实例
         try {
-            resource = ResourceFactory.build(weCrossRPC, bcosHelloWorldPath);
+            bcosWeCrossHubContract = ResourceFactory.build(weCrossRPC, bcosWeCrossHubPath);
+            bcosInterchainContract = ResourceFactory.build(weCrossRPC, bcosContractPath);
+            gm_bcosInterchainContract = ResourceFactory.build(weCrossRPC, gm_bcosContractPath);
         } catch (WeCrossSDKException e) {
-            logger.error("resource[" + bcosHelloWorldPath + "] build failed: " + e.toString());
+            logger.error("resource build failed: " + e.toString());
             weCrossRPC.logout();
             return;
         }
 
-        try {
-            gmResource = ResourceFactory.build(weCrossRPC, gmBcosHelloWorldPath);
-        } catch (WeCrossSDKException e) {
-            logger.error("resource[" + gmBcosHelloWorldPath + "] build failed: " + e.toString());
-            weCrossRPC.logout();
-            return;
-        }
-
-        // 执行事务前查询合约内容
+        // 跨链调用前查询合约内容
         queryResources();
 
-        // 自己维护事务id
-        String tid = getTransactionID();
-        logger.info("get a tid: " + tid);
+        // 创建调用目标合约方法的参数，如果参数列表复杂参考另一种调用合约的方式: https://fisco-bcos-documentation.readthedocs.io/zh_CN/latest/docs/sdk/java_sdk/assemble_transaction.html
+        String paramsListString = generateContractMethodParams();
+        logger.info("paramsListString:{}", paramsListString);
 
-        // 开始事务，分别锁定bcos链的HelloWorld合约和gm_bcos链的HelloWorld合约
+        String uid;
         try {
-            XAResponse response = weCrossRPC.startXATransaction(tid, paths).send();
+            // 调用bcos链的桥接合约发送跨链请求
+            TransactionResponse response = weCrossRPC.sendTransaction(
+                    bcosWeCrossHubPath,
+                    WeCrossHubInterchainInvoke,
+                    gm_bcosContractPath,
+                    gm_bcosContractMethod,
+                    paramsListString,
+                    bcosContractPath,
+                    bcosContractMethod).send();
             // TODO check response
-            logger.info("start Transaction response: " + response.toString());
+            logger.info("interchain Transaction response: " + response.toString());
+            uid = response.getData().getResult()[0].trim();
         } catch (Exception e) {
-            logger.error("start Transaction failed: " + e.toString());
+            logger.error("interchain Transaction failed: " + e.toString());
             weCrossRPC.logout();
             return;
         }
 
-        // 执行事务，在bcos链执行交易
+
+        // 查询跨链结果
         try {
-            TransactionResponse response = weCrossRPC.sendXATransaction(tid, bcosHelloWorldPath, "set", "修改合约内容:" + tid).send();
-            // TODO check response
-            logger.info("send bcos Transaction response: " + response.toString());
-        } catch (Exception e) {
-            logger.error("send bcos Transaction failed: " + e.toString());
-            try {
-                weCrossRPC.rollbackXATransaction(tid, paths).send();
-            } catch (Exception exception) {
-                logger.error("rollback Transaction failed: " + e.toString());
-            }
-            weCrossRPC.logout();
-            return;
+            Thread.sleep(3000);
+            String[] callRet = bcosWeCrossHubContract.call("selectCallbackResult", uid);
+            logger.info("interchain call[{}] result: {}", uid, Arrays.toString(callRet));
+        } catch (WeCrossSDKException | InterruptedException e) {
+            logger.error("selectCallbackResult[" + uid + "] failed:{}", e.toString());
         }
 
-        // 执行事务，在gm_bcos链执行交易
-        try {
-            TransactionResponse response = weCrossRPC.sendXATransaction(tid, gmBcosHelloWorldPath, "set", "修改合约内容:" + tid).send();
-            // TODO check response
-            logger.info("send gm_bcos Transaction response: " + response.toString());
-        } catch (Exception e) {
-            logger.error("send gm_bcos Transaction failed: " + e.toString());
-            try {
-                weCrossRPC.rollbackXATransaction(tid, paths).send();
-            } catch (Exception exception) {
-                logger.error("rollback Transaction failed: " + e.toString());
-            }
-            weCrossRPC.logout();
-            return;
-        }
-
-        // 提交事务，释放开始事务时锁定的资源
-        try {
-            XAResponse response = weCrossRPC.commitXATransaction(tid, paths).send();
-            logger.info("commit Transaction response: " + response.toString());
-        } catch (Exception e) {
-            logger.error("send bcos Transaction failed: " + e.toString());
-            try {
-                weCrossRPC.rollbackXATransaction(tid, paths).send();
-            } catch (Exception exception) {
-                logger.error("rollback Transaction failed: " + e.toString());
-            }
-            weCrossRPC.logout();
-            return;
-        }
-
-        // 执行事务后查询内容
+        // 执行跨链调用后查询相关合约内容
         queryResources();
-
-        // 更新本地事务id
-        try {
-            updateTransactionID();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
         weCrossRPC.logout();
+    }
+
+    private static String generateContractMethodParams() {
+        JSONArray json = new JSONArray();
+        json.add(0, Integer.toString(Math.abs(r.nextInt())));
+        return json.toString();
+    }
+
+    private static void queryResources() {
+        try {
+            String[] callRet = bcosInterchainContract.call("get");
+            logger.info(bcosInterchainContract.getPath() + " get info: " + Arrays.toString(callRet));
+
+            callRet = gm_bcosInterchainContract.call("get");
+            logger.info(gm_bcosInterchainContract.getPath() + " get info: " + Arrays.toString(callRet));
+        } catch (WeCrossSDKException e) {
+            logger.error("query resources failed: " + e.toString());
+        }
     }
 }
