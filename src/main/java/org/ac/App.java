@@ -3,7 +3,6 @@ package org.ac;
 import com.webank.wecrosssdk.exception.WeCrossSDKException;
 import com.webank.wecrosssdk.resource.Resource;
 import com.webank.wecrosssdk.resource.ResourceFactory;
-import com.webank.wecrosssdk.rpc.RemoteCall;
 import com.webank.wecrosssdk.rpc.WeCrossRPC;
 import com.webank.wecrosssdk.rpc.WeCrossRPCFactory;
 import com.webank.wecrosssdk.rpc.methods.response.TransactionResponse;
@@ -91,8 +90,9 @@ public class App {
 
         // 开始事务，分别锁定bcos链的HelloWorld合约和gm_bcos链的HelloWorld合约
         try {
-            XAResponse xaResponse = weCrossRPC.startXATransaction(tid, paths).send();
-            logger.info("start Transaction response: " + xaResponse.toString());
+            XAResponse response = weCrossRPC.startXATransaction(tid, paths).send();
+            // TODO check response
+            logger.info("start Transaction response: " + response.toString());
         } catch (Exception e) {
             logger.error("start Transaction failed: " + e.toString());
             weCrossRPC.logout();
@@ -102,6 +102,7 @@ public class App {
         // 执行事务，在bcos链执行交易
         try {
             TransactionResponse response = weCrossRPC.sendXATransaction(tid, bcosHelloWorldPath, "set", "修改合约内容:" + tid).send();
+            // TODO check response
             logger.info("send bcos Transaction response: " + response.toString());
         } catch (Exception e) {
             logger.error("send bcos Transaction failed: " + e.toString());
@@ -117,6 +118,7 @@ public class App {
         // 执行事务，在gm_bcos链执行交易
         try {
             TransactionResponse response = weCrossRPC.sendXATransaction(tid, gmBcosHelloWorldPath, "set", "修改合约内容:" + tid).send();
+            // TODO check response
             logger.info("send gm_bcos Transaction response: " + response.toString());
         } catch (Exception e) {
             logger.error("send gm_bcos Transaction failed: " + e.toString());
