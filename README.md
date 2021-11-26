@@ -7,6 +7,7 @@
 - 配置链账号
 - 网页管理平台
 - 资源部署
+- 跨链调用演示
 
 ## 环境要求
 2台ubuntu20.04 LTS机器（虚拟机即可，实体机更佳）分别运行独立的联盟链；
@@ -259,7 +260,7 @@ uaID    : 3059301306...
 http://localhost:8250/s/index.html#/login
 默认用户名密码：org1-admin/123456
 
-## 开发相关资源部署
+## 资源部署
 
 - 启动跨链路由控制台
 ``` sh
@@ -279,11 +280,10 @@ bash start.sh
 [WeCross.org1-admin]> bcosDeploy payment.gm_bcos.interchain contracts/solidity/InterchainSample.sol InterchainSample 1.0
 ```
 
-- 下载代码，确保是interchain_call分支：
-``` https://github.com/cpucorecore/WeCrossDemo/tree/interchain_call ```
+## 跨链调用演示
+- 下载代码：
+``` https://github.com/cpucorecore/WeCrossDemo ```
 
 - WeCrossDemo/src/main/resources目录存放证书，密钥和配置
-
 - 将跨链路由router-${zone}/cert/sdk/目录下的证书和密钥拷贝到本地项目的相应目录中，并根据实际跨链路由的ip地址和端口修改application.toml的server配置项
-
 - 运行WeCrossDemo/src/main/java/org/ac/App.java的main函数即可演示跨链调用

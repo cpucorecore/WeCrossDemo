@@ -1,4 +1,6 @@
 /*
+  运行前先部署依赖环境，参考文档：https://github.com/cpucorecore/WeCrossDemo/blob/main/README.md
+
   本例使用WeCross Java SDK发起对链上合约的调用，该sdk对合约调用支持有限，当不能满足需求时使用FISCO BCOS的Java SDK发起链上合约调用，它支持通过abi来构造交易，能够构造复杂的合约参数；
   本例在本地搭建了两条FISCO BCOS联盟链，分别为国密(gm_bcos)和非国密(bcos)链，展示由bcos链发起的对gm_bcos链的跨链调用；
   1. java App -->调用 payment.bcos.WeCrossHub合约 interchainInvoke方法
