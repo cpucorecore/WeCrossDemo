@@ -1,14 +1,5 @@
 version: '3'
 services:
-  mysql:
-    restart: always
-    image: mysql:latest
-    container_name: mysql
-    environment:
-      - "MYSQL_ROOT_PASSWORD=MyNewPass5ABC"
-    ports:
-      - 3306:3306
-
   data:
     image: busybox
     container_name: data
@@ -43,5 +34,3 @@ services:
       - 8251:8251
     volumes_from:
       - data
-    env_file:
-      - ./routers/env

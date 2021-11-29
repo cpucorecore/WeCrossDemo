@@ -1,3 +1,5 @@
+source env.sh
+
 apt-get update && apt-get install -y curl wget vim net-tools telnet ssh mysql-client default-jdk
 
 mkdir -p /root/wecross-networks && cd /root/wecross-networks
@@ -5,8 +7,8 @@ mkdir -p /root/wecross-networks && cd /root/wecross-networks
 # install wecross
 bash <(curl -sL https://gitee.com/WeBank/WeCross/raw/master/scripts/download_wecross.sh)
 
-echo -n "${GM_BCOS_ROUTER_IP}:8250:25500
-${BCOS_ROUTER_IP}:8251:25501" > ipfile
+echo -n "127.0.0.1:8250:25500
+127.0.0.1:8251:25501" > ipfile
 
 bash ./WeCross/build_wecross.sh -n payment -o routers-payment -f ipfile
 
