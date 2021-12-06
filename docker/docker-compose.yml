@@ -1,36 +1,9 @@
 version: '3'
+
 services:
-  data:
-    image: busybox
-    container_name: data
-    volumes:
-      - ./data:/data
-    tty: true
-
-  bcos:
-    build: bcos
-    image: bcos
-    container_name: bcos
-    ports:
-      - 20200:20200
-    volumes_from:
-      - data
-
-  gm_bcos:
-    build: gm_bcos
-    image: gm_bcos
-    container_name: gm_bcos
-    ports:
-      - 20300:20200
-    volumes_from:
-      - data
-
   routers:
     build: routers
     image: routers
     container_name: routers
     ports:
       - 8250:8250
-      - 8251:8251
-    volumes_from:
-      - data
